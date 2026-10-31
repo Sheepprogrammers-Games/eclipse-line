@@ -1,0 +1,6 @@
+.DS_Store
+.backup*/
+docs/superpowers/
+node_modules/
+*.log
+*.bak

@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>蚀线</title>
+  <link rel="icon" type="image/png" href="./assets/player-paper.png">
+  <link rel="stylesheet" href="./styles.css?v=107">
+  <script type="importmap">
+    { "imports": { "three": "./vendor/three.module.js" } }
+  </script>
+</head>
+<body>
+  <div id="game">
+    <div id="boot-screen" role="status" aria-live="polite">
+      <strong>蚀线</strong>
+      <span>正在显影</span>
+    </div>
+    <canvas id="view"></canvas>
+    <div id="flash" class="flash"></div>
+    <div id="hud" class="hidden"></div>
+    <div id="control-state" class="control-state hidden" aria-live="polite">
+      <span id="control-state-mark" aria-hidden="true">身</span>
+      <span id="control-state-text">人身 · 控制中</span>
+      <small id="control-state-hint">影印已冻结</small>
+    </div>
+    <aside id="objective" class="hidden" aria-live="polite">
+      <p id="objective-kicker">当前目标</p>
+      <p id="objective-text"></p>
+      <div class="objective-meta">
+        <span id="checkpoint-state">检查点 · 起点</span>
+        <span id="level-state">01 / 10</span>
+      </div>
+    </aside>
+    <div id="exposure-meter" class="hidden" data-state="seam" role="status" aria-label="蚀线，单光安全">
+      <span class="exposure-void" aria-hidden="true"></span>
+      <span class="exposure-seam" aria-hidden="true"></span>
+      <span class="exposure-white" aria-hidden="true"></span>
+    </div>
+    <button id="pause-btn" type="button" class="hidden" aria-label="暂停" title="暂停">Ⅱ</button>
+    <div id="views" class="hidden"></div>
+    <div id="crosshair" class="hidden" aria-hidden="true">
+      <span></span>
+      <p id="action-prompt" class="hidden"></p>
+    </div>
+    <div id="lamp-pop" class="hidden">
+      <p id="lamp-pop-title">路灯</p>
+      <p id="lamp-pop-hint" class="lamp-pop-hint">点按转一档，或用右下角按钮转向</p>
+      <div class="lamp-pop-row">
+        <button type="button" id="lamp-left">左转</button>
+        <button type="button" id="lamp-right">右转</button>
+      </div>
+      <div id="lamp-distance-row" class="lamp-pop-row hidden">
+        <button type="button" id="lamp-near">靠近</button>
+        <button type="button" id="lamp-far">远离</button>
+      </div>
+    </div>
+    <div id="hands" class="hidden">
+      <div class="hands-block" id="hands-lamp">
+        <p class="hands-title" id="hands-lamp-title">路灯</p>
+        <div class="hands-row">
+          <button type="button" id="hands-lamp-left">左转</button>
+          <button type="button" id="hands-lamp-right">右转</button>
+        </div>
+        <div id="hands-lamp-distance" class="hands-row hidden">
+          <button type="button" id="hands-lamp-near">靠近</button>
+          <button type="button" id="hands-lamp-far">远离</button>
+        </div>
+        <button type="button" id="hands-lamp-next" class="hands-wide">换一盏</button>
+      </div>
+      <div class="hands-block hidden" id="hands-crate">
+        <p class="hands-title">障碍</p>
+        <div class="hands-row">
+          <button type="button" id="hands-crate-push">推开</button>
+          <button type="button" id="hands-crate-pull">拉回</button>
+        </div>
+      </div>
+      <div class="hands-block hidden" id="hands-lever">
+        <p class="hands-title">纸闸</p>
+        <button type="button" id="hands-lever-toggle" class="hands-wide">扳闸</button>
+      </div>
+      <div class="hands-block hidden" id="hands-pick">
+        <button type="button" id="hands-pick-btn" class="hands-wide">拾起</button>
+      </div>
+    </div>
+    <div id="coach" class="hidden" aria-hidden="true"><p id="coach-text"></p></div>
+    <div id="stick" class="hidden" aria-hidden="true">
+      <div id="stick-base"><div id="stick-knob"></div></div>
+    </div>
+    <div id="input-status" class="hidden" role="status" aria-live="polite"></div>
+    <div id="nearby-prompt" class="nearby-prompt hidden" aria-live="polite">
+      <span id="nearby-prompt-key" aria-hidden="true">E</span>
+      <strong id="nearby-prompt-text">互动</strong>
+    </div>
+    <button id="shadow-action" type="button" class="hidden" aria-label="钉住影子" title="钉住影子">◒</button>
+    <div id="shadow-console" class="shadow-console hidden" aria-live="polite">
+      <div class="shadow-console-readout">
+        <span id="shadow-length-label">影长</span>
+        <strong id="shadow-length-value">0.0 m</strong>
+      </div>
+      <div class="shadow-console-actions">
+        <button id="shadow-pin" type="button">钉住</button>
+        <button id="shadow-release" type="button">收回</button>
+      </div>
+      <div id="shadow-light-actions" class="shadow-console-actions hidden">
+        <button id="shadow-light-near" type="button">灯靠近</button>
+        <button id="shadow-light-far" type="button">灯远离</button>
+      </div>
+    </div>
+    <button id="shadow-switch" type="button" class="hidden" aria-label="影印控制" title="影印控制">◒</button>
+    <div id="level-intro" class="level-intro hidden" aria-hidden="true">
+      <p id="level-intro-kicker"></p>
+      <h2 id="level-intro-name"></h2>
+      <p id="level-intro-note"></p>
+    </div>
+
+    <section id="title" class="overlay hero open">
+      <div class="title-card">
+        <p class="eyebrow">纸上光蚀</p>
+        <h1 class="mark">蚀线</h1>
+        <p class="tag">把影子钉成一条路</p>
+        <div class="title-signal" aria-hidden="true">
+          <span class="title-signal-rule"></span>
+          <span><b>01</b> 光源</span>
+          <span><b>02</b> 影印</span>
+          <span><b>03</b> 蚀线</span>
+        </div>
+        <div class="menu">
+          <button type="button" id="btn-start" class="primary" data-menu-index="01" data-menu-note="ENTER">开始游戏</button>
+          <button type="button" id="btn-continue" class="hidden" data-menu-index="02" data-menu-note="RESUME">继续旅程</button>
+          <button type="button" id="btn-how" data-menu-index="03" data-menu-note="FIELD NOTES">怎么玩</button>
+          <button type="button" id="btn-chapters" data-menu-index="04" data-menu-note="ARCHIVE">章节</button>
+          <button type="button" id="btn-settings" data-menu-index="05" data-menu-note="CALIBRATE">设置</button>
+          <button type="button" id="btn-credits" data-menu-index="06" data-menu-note="COLOPHON">制作人员</button>
+        </div>
+        <p class="title-footnote"><span>ARCHIVE  /  ECLIPSE LINE</span><span>© 2026</span></p>
+      </div>
+    </section>
+
+    <section id="guide" class="overlay">
+      <div class="guide-card">
+        <div class="screen-overline"><span>操作档案</span><span>02 / 05</span></div>
+        <p id="guide-kicker" class="eyebrow"></p>
+        <h2 id="guide-title" class="guide-title"></h2>
+        <p id="guide-body" class="guide-body"></p>
+        <div id="guide-rules" class="rules hidden">
+          <div class="rule void"><strong>影渊</strong><span>零盏灯 · 纯黑 · 坠落</span></div>
+          <div class="rule seam"><strong>蚀线</strong><span>恰好一盏 · 纸城 · 可走</span></div>
+          <div class="rule white"><strong>日蚀白</strong><span>两盏以上 · 过曝 · 坠落</span></div>
+        </div>
+        <div class="menu">
+          <button type="button" id="guide-next" class="primary">继续</button>
+          <button type="button" id="guide-back">返回</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="chapters" class="overlay">
+      <div class="chapter-heading">
+        <div class="screen-overline"><span>纸城档案</span><span>03 / 05</span></div>
+        <p class="eyebrow">航线记录</p>
+        <h2 class="chapter-title">章节</h2>
+        <p class="sub">通关后纸片才会显影。未走过的关是纯黑剪影。</p>
+      </div>
+      <div id="chapter-grid" class="chapter-grid" role="group" aria-label="关卡选择"></div>
+      <div class="menu chapter-back">
+        <button type="button" data-back="title">返回</button>
+      </div>
+    </section>
+
+    <section id="pause" class="overlay">
+      <div class="screen-overline"><span>现场暂停</span><span>暂停</span></div>
+      <p class="tag">暂停</p>
+      <p id="pause-reason" class="pause-reason hidden" aria-live="polite"></p>
+      <div class="menu">
+        <button type="button" id="btn-resume" class="primary" data-autofocus>回到纸城</button>
+        <button type="button" id="btn-restart">重开本关</button>
+        <button type="button" id="btn-hint">看一眼</button>
+        <button type="button" id="btn-how-pause">怎么玩</button>
+        <button type="button" id="btn-pause-settings">设置</button>
+        <button type="button" id="btn-back-title">回标题</button>
+      </div>
+    </section>
+
+    <section id="settings" class="overlay">
+      <div class="settings-card">
+        <div class="screen-overline"><span>控制台</span><span>04 / 05</span></div>
+        <p class="tag">设置</p>
+        <label class="setting">音乐 <input id="vol-music" type="range" min="0" max="100" value="72" data-autofocus></label>
+        <label class="setting">音效 <input id="vol-sfx" type="range" min="0" max="100" value="80"></label>
+        <label class="setting">静音 <input id="mute-audio" type="checkbox"></label>
+        <div class="setting">影质
+          <span>
+            <button type="button" id="q-high">高</button>
+            <button type="button" id="q-low">低</button>
+          </span>
+        </div>
+        <label class="setting">减少闪白 <input id="reduce-flash" type="checkbox"></label>
+        <label class="setting">显示计时 <input id="show-timer" type="checkbox" checked></label>
+        <label class="setting">手柄震动 <input id="gamepad-vibration" type="checkbox" checked></label>
+        <div class="setting">显示模式 <button type="button" id="fullscreen-toggle">进入全屏</button></div>
+        <div class="menu settings-back">
+          <button type="button" data-back="prev">返回</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="confirm" class="overlay">
+      <div class="dialog">
+        <p>重新开始会盖掉现在的进度。确定吗？</p>
+        <div class="row">
+          <button type="button" id="confirm-no" data-autofocus>取消</button>
+          <button type="button" id="confirm-yes" class="primary">确定</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="clear-card" class="overlay">
+      <p id="clear-kicker" class="eyebrow">蚀线还在</p>
+      <h2 id="clear-now" class="guide-title"></h2>
+      <p id="clear-line" class="line"></p>
+      <div id="clear-stamp" class="clear-stamp">无痕</div>
+      <div id="clear-stats" class="clear-stats" aria-label="本关记录">
+        <div><span>用时</span><strong id="clear-time">00:00</strong></div>
+        <div><span>碎裂</span><strong id="clear-falls">0</strong></div>
+        <div><span>提示</span><strong id="clear-hints">未使用</strong></div>
+      </div>
+      <p id="clear-record" class="clear-record"></p>
+      <p id="clear-next-wrap" class="sub">下一关 · <span id="clear-next"></span></p>
+      <button type="button" id="clear-go" class="primary">进入下一关</button>
+    </section>
+
+    <section id="chapter-card" class="overlay hero">
+      <p id="chapter-line" class="line"></p>
+      <p id="ending-stats" class="clear-record"></p>
+      <button type="button" id="chapter-skip">继续</button>
+    </section>
+
+    <section id="credits" class="overlay">
+      <div class="credits-card">
+        <div class="screen-overline"><span>制作档案</span><span>05 / 05</span></div>
+        <h2 class="mark">蚀线</h2>
+        <div id="credits-body" class="credits"></div>
+        <button type="button" id="credits-back" class="primary">返回</button>
+      </div>
+    </section>
+  </div>
+  <noscript><p class="no-script">需要启用 JavaScript 才能进入游戏。</p></noscript>
+  <script type="module" src="./src/main.js?v=113"></script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+{
+  "name": "eclipse-line",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "art": "python3 scripts/gen-art.py",
+    "pack": "node scripts/pack-dist.cjs"
+  }
+}
